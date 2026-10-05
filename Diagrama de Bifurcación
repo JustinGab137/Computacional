@@ -17,7 +17,7 @@ thetapunto = 1
 # Gamma values
 gamma_min = 0
 gamma_max = 2.25
-dgamma = 0.0001
+dgamma = 0.001
 gamma_values = np.arange(gamma_min, gamma_max + dgamma, dgamma)
 n_orbits = len(gamma_values)
 
