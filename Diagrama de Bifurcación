@@ -1,0 +1,88 @@
+import numpy as np 
+from numpy import sin,cos,pi 
+import matplotlib.pyplot as plt 
+from fractions import Fraction
+
+# System parameters
+alpha = 0.1
+omega0 = 1.0
+om = 2.0
+
+T = 2*pi/om
+
+# initial conditions
+theta = 1
+thetapunto = 1
+
+# Gamma values
+gamma_min = 0
+gamma_max = 2.25
+dgamma = 0.0001
+gamma_values = np.arange(gamma_min, gamma_max + dgamma, dgamma)
+n_orbits = len(gamma_values)
+
+# Numerical method parameters
+Trans = 250
+Nkeep = 300
+steps_per_T = 300
+dt = T/steps_per_T
+
+# Initial state 
+theta = np.full(n_orbits, theta)
+v = np.full(n_orbits, thetapunto)
+y = np.concatenate((theta, v))
+
+# Dynamics
+def dyn(t, y):
+    theta = y[:n_orbits]
+    v = y[n_orbits:]
+    dtheta = v
+    dv = (-alpha*v - omega0**2 * sin(theta) + gamma_values * cos(om*t) * sin(theta))
+    return np.concatenate([dtheta, dv])
+
+# Fourth-order Runge-Kutta method
+def rk4(f,t, y, h):
+    k1 = h*f(t, y)
+    k2 = h*f(t + h/2, y + k1/2)
+    k3 = h*f(t + h/2, y + k2/2)
+    k4 = h*f(t + h, y + k3)
+    return y + (k1 + 2*k2 + 2*k3 + k4)/6
+
+# Storage for stroboscopic points
+x_strobe = np.empty((Nkeep, n_orbits))
+v_strobe = np.empty((Nkeep, n_orbits))
+save_index = 0
+
+# Integration
+total_periods = Trans + Nkeep
+total_steps = total_periods * steps_per_T
+for step in range(total_steps):
+    current_time = step * dt
+    y = rk4(dyn, current_time, y, dt)
+    complete_periods = (step + 1) // steps_per_T
+    # Save stroboscopic points
+    if (step + 1) % steps_per_T == 0:
+        if complete_periods > Trans:
+            x_strobe[save_index] = y[:n_orbits]
+            v_strobe[save_index] = y[n_orbits:]
+            save_index += 1
+
+# Bifurcation diagram & Figure format
+fig, ax = plt.subplots(figsize=(8, 6))
+for i in range(n_orbits):
+    ax.scatter(np.full(Nkeep, gamma_values[i]), 
+               np.abs(v_strobe[:, i]), s=0.1, color='blue', linewidths=0, rasterized=True)
+ax.set_xlabel(r'$\gamma$', fontsize=16)
+ax.set_ylabel(r'$|\dot{\theta}|$', fontsize=16)
+ax.tick_params(axis='both', labelsize=12)
+ax.text(0.03, 0.97, rf'$\alpha={alpha}$', 
+        transform=ax.transAxes,ha='left', fontsize=14, verticalalignment='top')
+ax.text(0.03, 0.03, rf'$\omega_0={omega0}$',
+        transform=ax.transAxes,ha='left', fontsize=14, verticalalignment='bottom')
+ax.set_xlim(gamma_min, gamma_max)
+ax.set_box_aspect(0.65)
+plt.tight_layout()
+
+# Save figure
+plt.savefig('Bifurcation_Diagram.pdf', format='pdf', bbox_inches='tight', dpi=800)
+plt.show()
