@@ -1,0 +1,29 @@
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+mu = 2.8                    
+r_max = 1 / (mu - 1)          
+
+r = np.linspace(0, r_max, 400)
+dr = np.sqrt(np.clip((2 - 2 * r * (mu - 1)) / (1 + mu), 0, None)) 
+
+# Contorno continuo: rama positiva (r creciente) + rama negativa (r decreciente)
+r_cont = np.concatenate([r, r[::-1]])
+dr_cont = np.concatenate([dr, -dr[::-1]])
+
+fig, ax = plt.subplots(figsize=(6, 5))
+ax.plot(r_cont, dr_cont, color='black', lw=2,
+        label=r'$(1+\mu)\dot{r}^2 + 2r(\mu-1) = 2$')
+ax.fill(r_cont, dr_cont, color='red', alpha=0.15)   
+
+ax.axhline(0, color='black', lw=0.5, ls='--')
+ax.axvline(0, color='black', lw=0.5, ls='--')
+ax.set_title(rf'Sección de Poincaré: $\dot{{r}}$ vs $r$  ($\mu={mu}$)')
+ax.set_xlabel(r'$r$')
+ax.set_ylabel(r'$\dot{r}$')
+ax.set_xlim(-0.05, r_max * 1.1)
+ax.set_ylim(-dr.max() * 1.2, dr.max() * 1.2)
+ax.grid(alpha=0.3)
+ax.legend()
+plt.show()
