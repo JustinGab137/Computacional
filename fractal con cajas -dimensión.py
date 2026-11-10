@@ -65,7 +65,7 @@ def graficar(x, y, k):
               cmap=azul, interpolation="nearest")
     ax.set_xticks(np.linspace(0, 1, n + 1))
     ax.set_yticks(np.linspace(0, 1, n + 1))
-    ax.grid(color="gray", linewidth=0.3)
+    ax.grid(color="gray", linewidth=0.3)  
     ax.scatter(x, y, s=0.00001, color="green")
 
     # Estilo
@@ -93,3 +93,35 @@ resultados = [graficar(x, y, k) for k in EXPONENTES]
 print(f"{'n':>5} {'N(ε)':>8} {'Df':>10}")
 for n, n_cajas, dimension in resultados:
     print(f"{n:>5} {n_cajas:>8} {dimension:>10.6f}")
+    
+    
+def contar_cajas_N(x, y, n):
+    """N(ε): número de cajas ocupadas, sin construir la malla n×n."""
+    col = np.minimum((x * n).astype(np.int64), n - 1)
+    fil = np.minimum((y * n).astype(np.int64), n - 1)
+    return np.unique(fil * n + col).size
+
+K_TODOS  = np.arange(2, 17)      # ε = 1/2^k, k = 2..16
+K_AJUSTE = np.arange(4, 10)      # intervalo de escalamiento (ajustable)
+
+ln_inv_eps = K_TODOS * np.log(2)                       # ln(1/ε)
+ln_N = np.log([contar_cajas_N(x, y, 2**k) for k in K_TODOS])
+
+# Pendiente local: sirve para justificar el intervalo
+pend_local = np.diff(ln_N) / np.diff(ln_inv_eps)
+for k, s in zip(K_TODOS[1:], pend_local):
+    print(f"k={k:2d}  ln(1/ε)={k*np.log(2):6.3f}  pendiente local={s:.3f}")
+
+# Ajuste lineal solo en el intervalo de escalamiento
+mask = np.isin(K_TODOS, K_AJUSTE)
+Df, b = np.polyfit(ln_inv_eps[mask], ln_N[mask], 1)
+
+fig, ax = plt.subplots(figsize=(7, 5))
+ax.plot(ln_inv_eps[mask], Df * ln_inv_eps[mask] + b,
+        label=rf"$D_f = {Df:.4f}$")
+ax.scatter(ln_inv_eps, ln_N, s=12)
+ax.set_xlabel(r"$\ln(1/\epsilon)$")
+ax.set_ylabel(r"$\ln N(\epsilon)$")
+ax.legend(loc="upper left")
+plt.savefig("regresion_barnsley.png", dpi=300, bbox_inches="tight")
+plt.show()    
