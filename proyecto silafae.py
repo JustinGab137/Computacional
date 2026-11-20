@@ -1,3 +1,6 @@
+# Cambios: copositividad conjunta 3x3 normalizada correctamente,
+# etiquetas matematicas de figuras corregidas y exportacion CSV.
+
 import numpy as np
 
 import pandas as pd
@@ -32,7 +35,7 @@ BR_MAX = 0.11                 # Cota ATLAS (95% C.L.)
 
 FACTOR_SS = 4.0               # Reproduce Gamma(h -> SS) de la ecuacion (125)
 
-NORMALIZACION_S_CORRECTA = True    # Usa lambda_tilde_S = lambda_S/4, como en Ecs. (103)-(106)
+# Usamos siempre lambda_S/4, conforme al potencial V ⊃ (lambda_S/4) S^4.
 
 
 
@@ -124,7 +127,7 @@ mask_pert = ((np.abs(lambda_3) < 4*np.pi) & (np.abs(lambda_4) < 4*np.pi) &
 
 # Estabilidad (Ecs. 100-108)
 
-lamS = lambda_S/4.0 if NORMALIZACION_S_CORRECTA else lambda_S
+lamS = lambda_S/4.0
 
 lam3_peor = lambda_3 + lambda_4 - np.abs(lambda_5)
 
@@ -142,28 +145,31 @@ pares = ((lambda_3 + 2*s12 >= 0) & (lam3_peor + 2*s12 >= 0) &
 
 
 
+# Copositividad correcta para la matriz simetrica de orden tres:
+# A = [[a,d/2,e/2],[d/2,b,f/2],[e/2,f/2,c]],
+# a=lambda_1, b=lambda_2, c=lambda_S/4, e=lambda_6, f=lambda_7.
+# Para todo x,y,z >= 0, la orientacion mas desfavorable de los
+# dobletes tiene d=lambda_3+min(0, lambda_4-abs(lambda_5)).
+
 def condicion_tres_campos(l3):
+    a = lambda_1
+    b = lambda_2
+    c = lamS
+    d = l3
+    e = lambda_6
+    f = lambda_7
+    D = d + 2*np.sqrt(a*b)
+    E = e + 2*np.sqrt(a*c)
+    F = f + 2*np.sqrt(b*c)
+    # Los tests por pares se realizan por separado en 'pares'.
+    prod = np.clip(D, 0.0, None) * np.clip(E, 0.0, None) * np.clip(F, 0.0, None)
+    expr = (2*np.sqrt(a*b*c)
+            + d*np.sqrt(c) + e*np.sqrt(b) + f*np.sqrt(a)
+            + np.sqrt(prod))
+    return expr >= -1e-12  # Tolerancia numerica, no limite fisico.
 
-    lb3 = np.minimum(l3, 0.0)
-
-    lb6 = np.minimum(lambda_6, 0.0)
-
-    lb7 = np.minimum(lambda_7, 0.0)
-
-    prod = (l3 + 2*s12) * (lambda_6 + 2*s1S) * (lambda_7 + 2*s2S)
-
-    expr = (np.sqrt(lambda_1*lambda_2*lamS)
-
-            + lb3*np.sqrt(lamS) + lb6*np.sqrt(lambda_2) + lb7*np.sqrt(lambda_1)
-
-            + np.sqrt(2*np.clip(prod, 0.0, None)))
-
-    return expr >= 0
-
-
-
-mask_est = diag & pares & condicion_tres_campos(lambda_3) & condicion_tres_campos(lam3_peor)
-
+lam3_efectiva = lambda_3 + np.minimum(0.0, lambda_4 - np.abs(lambda_5))
+mask_est = diag & pares & condicion_tres_campos(lam3_efectiva)
 
 
 mask_range = ((mH0 > 10) & (mH0 < 300) & (mA0 < 400) & (mHpm < 400) &
@@ -277,6 +283,9 @@ survivors = pd.DataFrame({
 
 print(survivors.describe().T[["min", "max"]])
 
+# Exportar los puntos aceptados, utiles para verificaciones posteriores
+survivors.to_csv("idsm_puntos_aceptados_revisado.csv", index=False)
+
 
 
 # ============================================================
@@ -329,7 +338,7 @@ ax.fill_between(xx, 0, mZ - xx, color="red", alpha=0.25, zorder=0)
 
 ax.plot(xx, mZ - xx, color="darkred", lw=1.2, ls="--")
 
-ax.text(30, 25, "excluido por LEP\n" + r"($Z**\to**o H^0A^0$)", color="darkred",
+ax.text(30, 25, "excluido por LEP\n" + r"($Z\to H^0A^0$)", color="darkred",
 
         fontsize=8, ha="center", va="center")
 
@@ -349,7 +358,7 @@ ax.text(235, 120, r"$m_{A^0}<m_{H^0}$" + "\n(H0 no es el más ligero)",
 
 ax.scatter(mH0[excl_H0], mA0[excl_H0], c="tab:red", s=3, alpha=0.35,
 
-           label=r"excluidos por $h**\to**o H^0H^0$")
+           label=r"excluidos por $h\to H^0H^0$")
 
 sc = ax.scatter(survivors.mH0, survivors.mA0, c=survivors.lambda_3,
 
@@ -373,7 +382,7 @@ ax.set_title("Región de masas permitida en el IDSM: sector inerte")
 
 ax.legend(loc="lower right", fontsize=8, framealpha=0.9)
 
-plt.colorbar(sc, ax=ax).set_label(r"$**\lambda**ambda_3$")
+plt.colorbar(sc, ax=ax).set_label(r"$\lambda_3$")
 
 plt.tight_layout()
 
@@ -427,7 +436,7 @@ ax.set_title("Dos candidatos de materia oscura")
 
 ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.12), ncol=2, fontsize=8, frameon=False)
 
-plt.colorbar(sc, ax=ax).set_label(r"$**\lambda**ambda_7$")
+plt.colorbar(sc, ax=ax).set_label(r"$\lambda_7$")
 
 
 
@@ -447,13 +456,13 @@ ax.fill_between(ms_line, l6_max, LAMBDA_MAX, color="red", alpha=0.18, zorder=0)
 
 ax.fill_between(ms_line, -LAMBDA_MAX, -l6_max, color="red", alpha=0.18, zorder=0)
 
-ax.text(mh/4, 0.5*LAMBDA_MAX, r"excluido por $h**\to**o SS$" + "\n" + r"(solo $|**\lambda**ambda_6|**\lambda**esssim 5**\to**imes10^{-3}$ sobrevive)",
+ax.text(mh/4, 0.5*LAMBDA_MAX, r"excluido por $h\to SS$" + "\n" + r"(solo $|\lambda_6|\lesssim 5\times10^{-3}$ sobrevive)",
 
         color="darkred", fontsize=8, ha="center")
 
 ax.scatter(mS[excl_SS], lambda_6[excl_SS], c="tab:red", s=3, alpha=0.35,
 
-           label=r"excluidos por $h**\to**o SS$")
+           label=r"excluidos por $h\to SS$")
 
 sc = ax.scatter(survivors.mS, survivors.lambda_6, c=survivors.mH0,
 
@@ -467,9 +476,9 @@ ax.scatter([bench.mS], [bench.lambda_6], color="black", marker="*", s=220,
 
 ax.set_xlim(0, 1000); ax.set_ylim(-LAMBDA_MAX, LAMBDA_MAX)
 
-ax.set_xlabel(r"$m_S$ [GeV]"); ax.set_ylabel(r"$**\lambda**ambda_6$")
+ax.set_xlabel(r"$m_S$ [GeV]"); ax.set_ylabel(r"$\lambda_6$")
 
-ax.set_title(r"Portal de Higgs y cota de $h**\to**o SS$")
+ax.set_title(r"Portal de Higgs y cota de $h\to SS$")
 
 ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.12), ncol=3, fontsize=8, frameon=False)
 
